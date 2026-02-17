@@ -24,16 +24,14 @@ import { Nurse } from "./search.constant";
 import { NurseDetailDialog } from "./nurse-detail-dialog";
 import { DeploymentDialog } from "./deployment-dialog";
 import { SearchClient } from "./search-client";
-
+import { MapPin, Star, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface NursesTableProps {
   readonly nurses: readonly Nurse[];
   // readonly onCheckedNursesChange?: (nurses: Nurse[]) => void;
 }
 
-export function SearchWrapper({
-  nurses
-}: NursesTableProps) {
+export function SearchWrapper({ nurses }: NursesTableProps) {
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [sortBy, setSortBy] = useState<string>("name");
   const [filterAvailability, setFilterAvailability] = useState<string>("all");
@@ -41,15 +39,18 @@ export function SearchWrapper({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deployingNurses, setDeployingNurses] = useState<Nurse[]>([]);
   const [isDeploymentOpen, setIsDeploymentOpen] = useState(false);
-
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const filteredAndSortedNurses = useMemo(() => {
     let filtered = nurses.filter((nurse) => {
- 
+      console.log(nurse);
       const availabilityMatch =
         filterAvailability === "all" ||
         nurse.availability_status === filterAvailability;
-      return  availabilityMatch;
+      return availabilityMatch;
     });
 
     return filtered.sort((a, b) => {
@@ -70,6 +71,72 @@ export function SearchWrapper({
     });
   }, [nurses, sortBy, filterAvailability]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedNurses.length / itemsPerPage);
+  
+  const paginatedNurses = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedNurses.slice(startIndex, endIndex);
+  }, [filteredAndSortedNurses, currentPage, itemsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(parseInt(value));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   const checkedNurses = useMemo(
     () => filteredAndSortedNurses.filter((n) => checkedIds.has(n.id)),
     [filteredAndSortedNurses, checkedIds]
@@ -77,9 +144,7 @@ export function SearchWrapper({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const newSet = new Set(
-        filteredAndSortedNurses.map((n) => n.id)
-      );
+      const newSet = new Set(filteredAndSortedNurses.map((n) => n.id));
       setCheckedIds(newSet);
     } else {
       setCheckedIds(new Set());
@@ -100,18 +165,18 @@ export function SearchWrapper({
     handleSelectAll(checkedIds.size !== filteredAndSortedNurses.length);
   };
 
-//   const exportCheckedData = () => {
-//     const dataStr = JSON.stringify(checkedNurses, null, 2);
-//     const dataBlob = new Blob([dataStr], { type: "application/json" });
-//     const url = URL.createObjectURL(dataBlob);
-//     const link = document.createElement("a");
-//     link.href = url;
-//     link.download = `checked-nurses-${new Date().toISOString().split("T")[0]}.json`;
-//     document.body.appendChild(link);
-//     link.click();
-//     document.body.removeChild(link);
-//     URL.revokeObjectURL(url);
-//   };
+  //   const exportCheckedData = () => {
+  //     const dataStr = JSON.stringify(checkedNurses, null, 2);
+  //     const dataBlob = new Blob([dataStr], { type: "application/json" });
+  //     const url = URL.createObjectURL(dataBlob);
+  //     const link = document.createElement("a");
+  //     link.href = url;
+  //     link.download = `checked-nurses-${new Date().toISOString().split("T")[0]}.json`;
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     document.body.removeChild(link);
+  //     URL.revokeObjectURL(url);
+  //   };
 
   const handleDeploy = (nurse: Nurse) => {
     setDeployingNurses([nurse]);
@@ -135,75 +200,51 @@ export function SearchWrapper({
   };
 
   // Call the callback when checked nurses change
-//   if (onCheckedNursesChange) {
-//     // onCheckedNursesChange(checkedNurses);
-//   }
+  //   if (onCheckedNursesChange) {
+  //     // onCheckedNursesChange(checkedNurses);
+  //   }
 
   return (
     <div className="w-full space-y-4 p-4">
-      <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-lg">
-        <div className="flex-1 min-w-[200px]">
-          <label htmlFor="sort-by" className="text-sm font-medium text-slate-700 block mb-2">
-            Sort By
-          </label>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger id="sort-by">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="experience">Experience</SelectItem>
-              <SelectItem value="rating">Rating</SelectItem>
-              <SelectItem value="match_score">Match Score</SelectItem>
-              <SelectItem value="rate">Hourly Rate</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* header */}
+      <div
+        data-testid="page-header"
+        className="flex items-start justify-between mb-6"
+      >
+        <div>
+          <h1 className="text-3xl font-normal">Nurse Search & AI Matching</h1>
+          <p className="text-base font-normal mt-1">
+            Find and deploy qualified nurses with intelligent matching
+          </p>
         </div>
-
-        <div className="flex-1 min-w-[200px]">
-          <label htmlFor="availability" className="text-sm font-medium text-slate-700 block mb-2">
-            Availability
-          </label>
-          <Select
-            value={filterAvailability}
-            onValueChange={setFilterAvailability}
-          >
-            <SelectTrigger id="availability">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="Available">Available</SelectItem>
-              <SelectItem value="Busy">Busy</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="pt-6">
-          <Button
-            onClick={handleBulkDeploy}
-            disabled={checkedNurses.length === 0}
-            className="w-full bg-cyan-600 hover:bg-cyan-700"
-          >
-            Deploy ({checkedNurses.length})
-          </Button>
-        </div>
+        <Button
+          onClick={handleBulkDeploy}
+          disabled={checkedNurses.length === 0}
+          data-testid="deploy-selected-btn"
+          className="flex items-center gap-1 px-5 py-5 rounded-md text-sm font-semibold text-white transition-all hover:opacity-90"
+        >
+          Deploy ({checkedNurses.length})
+        </Button>
       </div>
-      <SearchClient/>
 
-      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+      {/* Search Filters */}
+      <SearchClient />
+
+      {/* <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
         <p className="text-sm text-slate-700">
           Selected: <strong>{checkedNurses.length}</strong> of{" "}
           <strong>{filteredAndSortedNurses.length}</strong> nurses
         </p>
-      </div>
+      </div> */}
 
+      {/* Table */}
       <div className="rounded-lg border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-100">
-              <TableHead className="w-12">
+            <TableRow className="">
+              <TableHead className="">
                 <Checkbox
+                  className="rounded-md"
                   checked={
                     filteredAndSortedNurses.length > 0 &&
                     checkedIds.size === filteredAndSortedNurses.length
@@ -212,26 +253,24 @@ export function SearchWrapper({
                   aria-label="Select all nurses"
                 />
               </TableHead>
-              <TableHead>Photo</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Credentials</TableHead>
               <TableHead>Specialty</TableHead>
               <TableHead className="text-right">Experience</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead className="text-right">Distance (mi)</TableHead>
+              <TableHead className="text-right">Distance</TableHead>
               <TableHead className="text-center">Match Score</TableHead>
               <TableHead>Availability</TableHead>
-              <TableHead className="text-right">Rate/hr</TableHead>
               <TableHead className="text-right">Rating</TableHead>
-              <TableHead>Certifications</TableHead>
               <TableHead className="text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedNurses.map((nurse) => (
+            {paginatedNurses.map((nurse) => (
               <TableRow key={nurse.id} className="hover:bg-slate-50">
                 <TableCell>
                   <Checkbox
+                    className="rounded-md"
                     checked={checkedIds.has(nurse.id)}
                     onCheckedChange={(checked) =>
                       handleCheckboxChange(nurse.id, checked as boolean)
@@ -239,8 +278,11 @@ export function SearchWrapper({
                     aria-label={`Select ${nurse.name}`}
                   />
                 </TableCell>
-                <TableCell>
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                <TableCell
+                  className="flex items-center font-medium cursor-pointer text-cyan-600 hover:text-cyan-700"
+                  onClick={() => handleNurseClick(nurse)}
+                >
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 mr-2">
                     <Image
                       src={nurse.photo}
                       alt={nurse.name}
@@ -248,26 +290,28 @@ export function SearchWrapper({
                       className="object-cover"
                     />
                   </div>
+                  <span className="text-sm font-normal text-brand-green6">{nurse.name}</span>
                 </TableCell>
-                <TableCell className="font-medium cursor-pointer text-cyan-600 hover:text-cyan-700" onClick={() => handleNurseClick(nurse)}>{nurse.name}</TableCell>
                 <TableCell className="text-sm">{nurse.credentials}</TableCell>
                 <TableCell className="text-sm">{nurse.specialty}</TableCell>
-                <TableCell className="text-right text-sm">
+                <TableCell className=" text-sm">
                   {nurse.experience_years} yrs
                 </TableCell>
-                <TableCell className="text-sm">{nurse.location}</TableCell>
-                <TableCell className="text-right text-sm">
-                  {nurse.distance_miles.toFixed(1)}
+                <TableCell className="text-sm font-normal">
+                  <div className="flex items-center">
+                    <MapPin className="w-4 mr-1" />
+                    {nurse.location}
+                  </div>
+                </TableCell>
+                <TableCell className=" text-sm">
+                  {nurse.distance_miles.toFixed(1)} mi
                 </TableCell>
                 <TableCell className="text-center">
-                  <Badge
-                    variant={
-                      nurse.match_score >= 90 ? "default" : "secondary"
-                    }
-                    className="text-xs"
+                  <div
+                    className="text-sm font-normal px-5 py-1.5 rounded-full bg-brand-green2 text-brand-green3"
                   >
                     {nurse.match_score}%
-                  </Badge>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge
@@ -276,35 +320,28 @@ export function SearchWrapper({
                         ? "default"
                         : "secondary"
                     }
-                    className={`text-xs ${
+                    className={`text-xs font-normal px-2 py-1.5 bg-brand-green4 rounded-full shadow-none ${
                       nurse.availability_status === "Available"
-                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                        ? "bg-green-100 text-brand-green5 hover:bg-green-200"
                         : "bg-amber-100 text-amber-800 hover:bg-amber-200"
                     }`}
                   >
                     {nurse.availability_status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right text-sm font-medium">
-                  ${nurse.rate_per_hour}
-                </TableCell>
-                <TableCell className="text-right text-sm">
-                  ⭐ {nurse.previous_rating}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {nurse.certifications.map((cert) => (
-                      <Badge key={cert} variant="outline" className="text-xs">
-                        {cert}
-                      </Badge>
-                    ))}
+
+                <TableCell className="text-right text-sm ">
+                  <div className="flex items-center">
+                    <Star className="w-4 mr-1 text-yellow-400 fill-yellow-400" />{" "}
+                    {nurse.previous_rating}
                   </div>
                 </TableCell>
+
                 <TableCell className="text-center">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     onClick={() => handleDeploy(nurse)}
-                    className="bg-cyan-600 hover:bg-cyan-700"
+                    className="px-4 py-1.5 text-sm font-normal rounded-full border text-brand-green6 border-brand-green6 bg-white shadow-none hover:bg-green-50 hover:text-green-800"
                   >
                     Deploy
                   </Button>
@@ -318,6 +355,73 @@ export function SearchWrapper({
       {filteredAndSortedNurses.length === 0 && (
         <div className="text-center py-8 text-slate-500">
           No nurses found matching your filters.
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filteredAndSortedNurses.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-b-lg border-t">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Rows per page:</span>
+            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-[70px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+             <div className="text-sm text-gray-600">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedNurses.length)} of {filteredAndSortedNurses.length} records
+          </div>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePrevious}
+              disabled={currentPage === 1}
+              className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            {getPageNumbers().map((page, index) => (
+              typeof page === "number" ? (
+                <Button
+                  key={index}
+                  variant={currentPage === page ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handlePageChange(page)}
+                  className={`h-8 w-8 p-0 text-sm ${
+                    currentPage === page
+                      ? "bg-gray-600 text-white hover:bg-cyan-700"
+                      : "text-brand-green6"
+                  }`}
+                >
+                  {page}
+                </Button>
+              ) : (
+                <span key={index} className="px-2 text-gray-400">...</span>
+              )
+            ))}
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNext}
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          
+         
         </div>
       )}
 
@@ -343,13 +447,13 @@ export function SearchWrapper({
         </div>
       )}
 
-      <NurseDetailDialog 
+      <NurseDetailDialog
         nurse={selectedNurse}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onDeploy={handleDeploy}
       />
-      
+
       <DeploymentDialog
         nurses={deployingNurses}
         open={isDeploymentOpen}

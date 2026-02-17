@@ -79,6 +79,11 @@ const config = {
   				blue: 'hsl(var(--brand-blue))',
   				green: 'hsl(var(--brand-green))',
 				green1: 'hsl(var(--brand-green1))',
+				green2:'hsl(var(--brand-green2))',
+				green3:'hsl(var(--brand-green3))',
+				green4:'hsl(var(--brand-green4))',
+				green5:'hsl(var(--brand-green5))',
+				green6:'hsl(var(--brand-green6))',
   				orange: 'hsl(var(--brand-orange))'
   			}
   		},
